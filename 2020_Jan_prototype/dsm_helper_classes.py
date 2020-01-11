@@ -75,6 +75,8 @@ class DSMMatrix(object):
     def reorder_by_cluster(dsm_matrix, cluster_matrix):
         """ Returns a new dsm_matrix object expanding out the elements in multiple clusters, also recalculating the size of this matrix
         """
+        assert cluster_matrix.num_activities == len(dsm_matrix), "Number of activities in cluster_matrix should be same as the dsm_matrix"
+
         cl_mat = cluster_matrix.mat
         ds_mat = dsm_matrix.mat
 
@@ -127,7 +129,7 @@ class ClusterMatrix(object):
     def update_cluster_size(self):
         """ Updates the cluster_size array to reflect changes in mat
         """
-        self.cluster_size = np.array([sum(row) for row in self.mat])
+        self.cluster_size = np.array([row[row > 0].size for row in self.mat])
 
     def update_mat(self, element, cluster_list):
         """ Updates the matrix to reflect a new bid in input cluster_list
@@ -136,3 +138,28 @@ class ClusterMatrix(object):
         self.mat[:,element] = \
             np.logical_or(self.mat[:,element], cluster_list)
 
+    @staticmethod
+    def reorder_by_cluster(cluster_matrix):
+        """ Reorders the clusters in order as follows:
+
+            The matrix:
+            [[1, 0],                
+             [1, 1]]
+
+            becomes:
+            [[1, 0, 0],
+             [0, 1, 1]]
+
+            This function guarantees that an ordered cluster will be reordered to itself
+        """
+        new_clu_mat = ClusterMatrix.from_mat(np.zeros(\
+            [cluster_matrix.num_clusters, sum(cluster_matrix.cluster_size)]))
+
+        start = 0
+        for ind, row in enumerate(cluster_matrix.mat):
+            fin = start + row[row != 0].size
+            new_clu_mat.mat[ind, start:fin] = 1
+            start = fin
+
+        new_clu_mat.update_cluster_size()
+        return new_clu_mat
